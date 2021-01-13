@@ -12,15 +12,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.gaoyh;
+package com.gaoyh.producer;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.annotation.PostConstruct;
-import javax.annotation.Resource;
 
 import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer;
-import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext;
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus;
 import org.apache.rocketmq.client.consumer.listener.MessageListenerConcurrently;
 import org.apache.rocketmq.client.exception.MQClientException;
@@ -28,36 +27,70 @@ import org.apache.rocketmq.client.producer.DefaultMQProducer;
 import org.apache.rocketmq.client.producer.SendCallback;
 import org.apache.rocketmq.client.producer.SendResult;
 import org.apache.rocketmq.common.message.Message;
-import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
-import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.gaoyh.consumer.RocketrMqConsumer;
 
 /**
  * @author Jongho Moon
  */
+@SpringBootApplication
 @RestController
-public class RocketMq {
-   /* @Autowired
+public class RocketMqProducer {
+    public static void main(String[] args) {
+        SpringApplication.run(RocketMqProducer.class, args);
+    }
+    @Autowired
     private DefaultMQProducer producer;
+
+    @GetMapping("broadcast")
+    public String broadcast() throws Exception {
+        for (int i = 0; i < 1; i++) {
+            Message msg = new Message("TopicTest",
+                                      "TagA",
+                                      "OrderID188",
+                                      "Hello world".getBytes(RemotingHelper.DEFAULT_CHARSET));
+            SendResult sendResult = producer.send(msg);
+            System.out.printf("%s%n", sendResult);
+        }
+        return "success";
+    }
+
     @GetMapping("send")
     public String send() throws Exception {
-        for (int i = 0; i < 1; i++) {
+        for (int i = 0; i < 100; i++) {
             final int index = i;
             //Create a message instance, specifying topic, tag and message body.
-            Message msg = new Message("TopicTest" *//* Topic *//*,
-                                      "TagA" *//* Tag *//*,
+            Message msg = new Message("TopicTest",
+                                      "TagA",
                                       ("Hello RocketMQ " +
-                                       i).getBytes(RemotingHelper.DEFAULT_CHARSET) *//* Message body *//*
-            );
+                                       i).getBytes(RemotingHelper.DEFAULT_CHARSET));
             //Call send message to deliver message to one of brokers.
             producer.send(msg);
         }
+        return "success";
+    }
+
+    @GetMapping("sendBatch")
+    public String sendBatch() throws Exception {
+        List<Message> list = new ArrayList<>();
+        for (int i = 0; i < 1; i++) {
+            final int index = i;
+            //Create a message instance, specifying topic, tag and message body.
+            Message msg = new Message("TopicTest",
+                                      "TagA",
+                                      ("Hello RocketMQ " +
+                                       i).getBytes(RemotingHelper.DEFAULT_CHARSET));
+            //Call send message to deliver message to one of brokers.
+            list.add(msg);
+        }
+        producer.send(list);
         return "success";
     }
 
@@ -66,10 +99,10 @@ public class RocketMq {
         for (int i = 0; i < 1; i++) {
             final int index = i;
             //Create a message instance, specifying topic, tag and message body.
-            Message msg = new Message("TopicTest" *//* Topic *//*,
-                                      "TagA" *//* Tag *//*,
+            Message msg = new Message("TopicTest",
+                                      "TagA",
                                       ("Hello RocketMQ " +
-                                       i).getBytes(RemotingHelper.DEFAULT_CHARSET) *//* Message body *//*
+                                       i).getBytes(RemotingHelper.DEFAULT_CHARSET) // Message body
             );
             //Call send message to deliver message to one of brokers.
             producer.send(msg, new SendCallback() {
@@ -88,13 +121,14 @@ public class RocketMq {
         return "success";
     }
 
-    @PostConstruct
+//    @PostConstruct
     public void consume() throws Exception {
         // Instantiate with specified consumer group name.
         DefaultMQPushConsumer consumer = new DefaultMQPushConsumer("mytest");
 
         // Specify name server addresses.
         consumer.setNamesrvAddr("localhost:9876");
+        consumer.setConsumeMessageBatchMaxSize(32);
 
         // Subscribe one more more topics to consume.
         consumer.subscribe("TopicTest", "*");
@@ -120,34 +154,34 @@ public class RocketMq {
         //Launch the instance.
         producer.start();
         return producer;
-    }*/
-
-    @Resource
-    private RocketMQTemplate rocketMQTemplate;
-
-    @GetMapping("template/send")
-    public boolean sendMessage(String addMessageReq) {
-        //指定topic，tag
-        rocketMQTemplate.convertAndSend("TopicTest", "hello word");
-        return true;
     }
 
-    @GetMapping("template/sendAsync")
-    public boolean syncSendMessage() {
-        rocketMQTemplate.asyncSend("TopicTest", "syncSendMessage hello word", new SendCallback() {
-            // 实现消息发送成功的后续处理
-            @Override
-            public void onSuccess(SendResult var1) {
-                System.out.println("async onSucess SendResult："+ var1);
-            }
-            // 实现消息发送失败的后续处理
-            @Override
-            public void onException(Throwable var1) {
-                System.out.println("async onException Throwable"+ var1);
-
-            }
-        });
-        return true;
-    }
+//    @Resource
+//    private RocketMQTemplate rocketMQTemplate;
+//
+//    @GetMapping("template/send")
+//    public boolean sendMessage(String addMessageReq) {
+//        //指定topic，tag
+//        rocketMQTemplate.convertAndSend("TopicTest", "hello word");
+//        return true;
+//    }
+//
+//    @GetMapping("template/sendAsync")
+//    public boolean syncSendMessage() {
+//        rocketMQTemplate.asyncSend("TopicTest", "syncSendMessage hello word", new SendCallback() {
+//            // 实现消息发送成功的后续处理
+//            @Override
+//            public void onSuccess(SendResult var1) {
+//                System.out.println("async onSucess SendResult："+ var1);
+//            }
+//            // 实现消息发送失败的后续处理
+//            @Override
+//            public void onException(Throwable var1) {
+//                System.out.println("async onException Throwable"+ var1);
+//
+//            }
+//        });
+//        return true;
+//    }
 
 }
